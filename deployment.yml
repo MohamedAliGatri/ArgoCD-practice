@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: preprod
+
+---
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-boot-service
+  namespace: preprod
+spec:
+  selector:
+    component: spring
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8089
+      targetPort: 8089
+  type: ClusterIP
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: angular-service
+  namespace: preprod
+spec:
+  selector:
+    component: angular
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  type: NodePort
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  namespace: preprod
+spec:
+  selector:
+    matchLabels:
+      app: app
+      component: spring
+  template:
+    metadata:
+      labels:
+        app: app
+        component: spring
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:5.7
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: MYSQL_DATABASE
+              value: db
+        - name: spring-app
+          image: gatrimohamedali/devops-project:1.6
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: DB_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: db
+          ports:
+            - containerPort: 8089
+      imagePullSecrets:
+        - name: dockercred
+    
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: preprod
+type: Opaque
+data:
+  username: root
+  password: cGFzc3dvcmQK
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular-app
+  namespace: preprod
+spec:
+  selector:
+    matchLabels:
+      component: angular
+  template:
+    metadata:
+      labels:
+        app: app
+        component: angular
+    spec:
+      containers:
+        - name: angular-app
+          image: gatrimohamedali/front-devops:v1.0.3
+          env:
+            - name: API_URL
+              value: "http://spring-boot-service:8089"
+          ports:
+            - containerPort: 80
