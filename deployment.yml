@@ -68,7 +68,7 @@ spec:
             - name: MYSQL_DATABASE
               value: db
         - name: spring-app
-          image: gatrimohamedali/devops-project:1.6
+          image: gatrimohamedali/devops-project:
           env:
             - name: DB_USERNAME
               valueFrom:
